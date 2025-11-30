@@ -132,15 +132,22 @@ User: Take a screenshot of the current PyMOL view
 ```bash
 GEMINI_API_KEY=your_api_key_here
 PYMOL_PATH=/usr/local/bin/pymol
-AGENT_MODEL=gemini-2.5-flash
+AGENT_MODEL=gemini-2.5-pro
 AGENT_TEMPERATURE=0.1
 ```
 
 ### Agent Settings
-- **Model**: Gemini 2.5 Flash (balanced performance and cost)
+- **Model**: Gemini 2.5 Pro (optimized for function calling, complex reasoning, and multimodal tasks)
+  - **Why Pro?**: This agent requires advanced reasoning for tool orchestration, vision analysis, and understanding complex PyMOL commands. Pro provides:
+    - Superior function calling capabilities for multi-tool orchestration
+    - Enhanced multimodal understanding for vision analysis
+    - 1M token context window for maintaining conversation history
+    - Better reasoning for complex natural language commands
 - **Temperature**: 0.1 (for consistent responses)
 - **Memory**: Configurable short-term and long-term storage
 - **Tools**: Modular registration system
+
+**Note**: If cost is a primary concern, you can switch to `gemini-2.5-flash` which offers a good balance, but Pro is recommended for optimal agent performance.
 
 ## 🧪 Testing
 

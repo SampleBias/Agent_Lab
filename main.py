@@ -19,7 +19,7 @@ from gui_inspector import register_gui_inspector_tools
 class IntegratedPyMOLAgent:
     """Complete PyMOL Learning Agent with all tools integrated."""
     
-    def __init__(self, api_key: str = None, model: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: str = None, model: str = "gemini-2.5-pro"):
         """Initialize the integrated agent with all tools."""
         
         # Initialize the base agent
@@ -201,12 +201,13 @@ async def main():
         mode_map = {"1": "interactive", "2": "basic", "3": "tools"}
         mode = mode_map.get(choice, "interactive")
     
-    # Check for API key
-    api_key = os.getenv("GEMINI_API_KEY")
+    # Check for API key (support both GEMINI_API_KEY and GOOGLE_API_KEY)
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not api_key:
-        print("❌ ERROR: GEMINI_API_KEY environment variable is required")
+        print("❌ ERROR: GEMINI_API_KEY or GOOGLE_API_KEY environment variable is required")
         print("Get your API key from: https://aistudio.google.com/apikey")
         print("Set it with: export GEMINI_API_KEY=your_key_here")
+        print("Or add it to your .env file: GEMINI_API_KEY=your_key_here")
         return
     
     try:

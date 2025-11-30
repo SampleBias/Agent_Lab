@@ -171,12 +171,73 @@ class ToolRegistry:
 class PyMOLAgent:
     """Main PyMOL Learning Agent with orchestration capabilities."""
     
-    def __init__(self, api_key: str = None, model: str = "gemini-2.5-flash"):
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
-        if not self.api_key:
-            raise ValueError("GEMINI_API_KEY environment variable is required")
+    def __init__(self, api_key: str = None, model: str = "gemini-2.5-pro"):
+        # Check for API key in multiple environment variables (google-genai supports both)
+        # The google-genai library can read from GOOGLE_API_KEY automatically, but we'll
+        # explicitly pass it to ensure it's used correctly
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         
-        self.client = genai.Client(api_key=self.api_key)
+        # Strip whitespace that might be in .env file
+        if self.api_key:
+            self.api_key = self.api_key.strip()
+        
+        if not self.api_key:
+            raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY environment variable is required")
+        
+        # Validate API key format
+        if not self.api_key.startswith("AIza"):
+            raise ValueError(
+                f"Invalid API key format. API keys should start with 'AIza'. "
+                f"Got: {self.api_key[:10]}... (length: {len(self.api_key)})"
+            )
+        
+        # Initialize client with explicit API key
+        # Note: google-genai Client can also read from GOOGLE_API_KEY env var automatically,
+        # but we pass it explicitly to ensure the correct key is used
+        # Also set it as GOOGLE_API_KEY in case the library checks that first
+        os.environ["GOOGLE_API_KEY"] = self.api_key
+        
+        try:
+            self.client = genai.Client(api_key=self.api_key)
+        except Exception as e:
+            error_str = str(e)
+            # Provide detailed error information
+            error_details = (
+                f"Failed to initialize Gemini client.\n"
+                f"Error: {error_str}\n\n"
+                f"API Key Info:\n"
+                f"  - First 20 chars: {self.api_key[:20]}...\n"
+                f"  - Length: {len(self.api_key)} (expected ~39)\n"
+                f"  - Format valid: {self.api_key.startswith('AIza')}\n\n"
+            )
+            
+            if "API key expired" in error_str or "API_KEY_INVALID" in error_str:
+                error_details += (
+                    "🔍 Diagnosis: API Key Authentication Failed\n\n"
+                    "Possible causes:\n"
+                    "  1. API key has expired (check expiration date in Google Cloud Console)\n"
+                    "  2. API key is invalid or was revoked\n"
+                    "  3. Gemini API is not enabled for this key/project\n"
+                    "  4. API key has IP/domain restrictions blocking your access\n"
+                    "  5. API key was created but not properly activated\n\n"
+                    "Solutions:\n"
+                    "  1. Visit https://aistudio.google.com/apikey\n"
+                    "  2. Create a NEW API key (don't reuse old keys)\n"
+                    "  3. Ensure 'Generative Language API' is enabled\n"
+                    "  4. Check API key restrictions in Google Cloud Console\n"
+                    "  5. Update .env file: GEMINI_API_KEY=your_new_key\n"
+                    "  6. Run test script: python test_api_key.py\n"
+                )
+            elif "400" in error_str or "INVALID_ARGUMENT" in error_str:
+                error_details += (
+                    "🔍 Diagnosis: Invalid Request\n"
+                    "This might indicate:\n"
+                    "  - Model name issue (check if 'gemini-2.5-pro' is available)\n"
+                    "  - API version mismatch\n"
+                    "  - Request format issue\n"
+                )
+            
+            raise ValueError(error_details) from e
         self.model = model
         self.memory = MemorySystem()
         self.tool_registry = ToolRegistry()
@@ -260,7 +321,23 @@ class PyMOLAgent:
             return response_text
             
         except Exception as e:
-            error_msg = f"Error processing message: {str(e)}"
+            error_str = str(e)
+            # Provide helpful error messages for common API key issues
+            if "API key expired" in error_str or "API_KEY_INVALID" in error_str:
+                error_msg = (
+                    f"❌ API Key Error: {error_str}\n\n"
+                    "This usually means:\n"
+                    "1. Your API key has expired - get a new one from https://aistudio.google.com/apikey\n"
+                    "2. Your API key is invalid - verify it's correct in your .env file\n"
+                    "3. Your API key doesn't have the required permissions\n\n"
+                    "To fix:\n"
+                    "- Visit https://aistudio.google.com/apikey to create/renew your API key\n"
+                    "- Update your .env file with: GEMINI_API_KEY=your_new_key_here\n"
+                    "- Make sure the key starts with 'AIza'"
+                )
+            else:
+                error_msg = f"Error processing message: {error_str}"
+            
             self.memory.add_short_term(error_msg, importance=1.0)
             return error_msg
     
